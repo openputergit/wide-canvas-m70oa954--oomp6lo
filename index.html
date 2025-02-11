@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberMatch - Future of Recruitment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #000428 0%, #004e92 100%);
+            overscroll-behavior: contain;
+        }
+        h1, h2, h3 {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .cyber-glass {
+            background: rgba(0, 30, 60, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 195, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 195, 255, 0.1);
+        }
+        .cyber-glow {
+            text-shadow: 0 0 10px rgba(0, 195, 255, 0.5);
+        }
+        .cyber-border {
+            border: 1px solid rgba(0, 195, 255, 0.3);
+        }
+        .swipe-card {
+            position: absolute;
+            width: 100%;
+            transition: all 0.4s ease;
+            touch-action: pan-y pinch-zoom;
+        }
+        .neon-text {
+            color: #00ffff;
+            text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff;
+        }
+        .skill-tag {
+            background: rgba(0, 195, 255, 0.1);
+            border: 1px solid rgba(0, 195, 255, 0.3);
+        }
+        .scan-anim {
+            position: relative;
+            overflow: hidden;
+        }
+        .scan-anim::after {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: rgba(0, 195, 255, 0.5);
+            animation: scan 2s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4" x-data="app()">
+    <!-- Loading Overlay -->
+    <div x-show="loading" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="w-16 h-16 border-4 border-t-cyan-500 border-cyan-200/20 rounded-full animate-spin mb-4"></div>
+            <p class="text-cyan-500 font-semibold" x-text="loadingMessage">Initializing Neural Network...</p>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div x-show="showAuthModal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-40">
+        <div class="cyber-glass p-8 rounded-xl max-w-md w-full mx-4">
+            <h2 class="text-2xl font-bold text-cyan-400 mb-6">Neural Link Authentication</h2>
+            <form @submit.prevent="authenticateUser">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-cyan-400 mb-2">Neural ID (Email)</label>
+                        <input type="email" x-model="auth.email" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                    </div>
+                    <div>
+                        <label class="block text-cyan-400 mb-2">Access Code</label>
+                        <input type="password" x-model="auth.password" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                    </div>
+                    <div>
+                        <label class="block text-cyan-400 mb-2">Interface Type</label>
+                        <select x-model="auth.userType" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                            <option value="seeker">Neural Agent (Job Seeker)</option>
+                            <option value="recruiter">Neural Coordinator (Recruiter)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl text-white font-semibold hover:from-cyan-600 hover:to-blue-600 transition-all">
+                        Initialize Neural Link
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile Setup Modal -->
+    <div x-show="showProfileSetup" class="fixed inset-0 bg-black/90 flex items-center justify-center z-40">
+        <div class="cyber-glass p-8 rounded-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-bold text-cyan-400 mb-6">Neural Profile Configuration</h2>
+            <form @submit.prevent="saveProfile" class="space-y-6">
+                <template x-if="auth.userType === 'seeker'">
+                    <!-- Job Seeker Profile Fields -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-cyan-400 mb-2">Neural Capabilities (Skills)</label>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <template x-for="skill in profile.skills" :key="skill">
+                                    <span class="skill-tag px-3 py-1 rounded-full text-sm text-cyan-400 flex items-center">
+                                        <span x-text="skill"></span>
+                                        <button type="button" @click="removeSkill(skill)" class="ml-2 text-cyan-400 hover:text-cyan-300">×</button>
+                                    </span>
+                                </template>
+                            </div>
+                            <input type="text" x-model="newSkill" @keydown.enter.prevent="addSkill" placeholder="Add skill and press Enter" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-cyan-400 mb-2">Experience Cycles</label>
+                            <input type="number" x-model="profile.experience" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-cyan-400 mb-2">Neural Training (Education)</label>
+                            <input type="text" x-model="profile.education" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-cyan-400 mb-2">Neural Synopsis (Bio)</label>
+                            <textarea x-model="profile.bio" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500" rows="3"></textarea>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="auth.userType === 'recruiter'">
+                    <!-- Recruiter Profile Fields -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-cyan-400 mb-2">Company Designation</label>
+                            <input type="text" x-model="profile.company" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-cyan-400 mb-2">Position Title</label>
+                            <input type="text" x-model="profile.jobTitle" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-cyan-400 mb-2">Required Neural Capabilities</label>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <template x-for="skill in profile.requiredSkills" :key="skill">
+                                    <span class="skill-tag px-3 py-1 rounded-full text-sm text-cyan-400 flex items-center">
+                                        <span x-text="skill"></span>
+                                        <button type="button" @click="removeRequiredSkill(skill)" class="ml-2 text-cyan-400 hover:text-cyan-300">×</button>
+                                    </span>
+                                </template>
+                            </div>
+                            <input type="text" x-model="newRequiredSkill" @keydown.enter.prevent="addRequiredSkill" placeholder="Add required skill and press Enter" class="w-full p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-cyan-400 mb-2">Resource Allocation (Salary Range)</label>
+                            <div class="flex gap-4">
+                                <input type="number" x-model="profile.salaryMin" placeholder="Min" class="w-1/2 p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                                <input type="number" x-model="profile.salaryMax" placeholder="Max" class="w-1/2 p-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-400 focus:outline-none focus:border-cyan-500">
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <button type="submit" class="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl text-white font-semibold hover:from-cyan-600 hover:to-blue-600 transition-all">
+                    Initialize Neural Profile
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App Interface -->
+    <div x-show="!loading && !showAuthModal && !showProfileSetup">
+        <!-- Navigation -->
+        <nav class="cyber-glass rounded-xl mb-8 p-4">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-2xl font-bold neon-text">CyberMatch</h1>
+                <div class="flex gap-4">
+                    <button @click="openProfile" class="p-3 cyber-glass rounded-lg text-cyan-400 hover:bg-cyan-900/20 transition-all">
+                        <i class="bi bi-person-circle text-xl"></i>
+                    </button>
+                    <button @click="openMatches" class="p-3 cyber-glass rounded-lg text-cyan-400 hover:bg-cyan-900/20 transition-all relative">
+                        <i class="bi bi-chat-dots text-xl"></i>
+                        <span x-show="matches.length > 0" class="absolute -top-1 -right-1 bg-cyan-500 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center" x-text="matches.length"></span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="container mx-auto">
+            <!-- Card Stack -->
+            <div class="relative w-full max-w-md mx-auto h-[600px]">
+                <template x-for="(card, index) in visibleCards" :key="card.id">
+                    <div class="swipe-card cyber-glass rounded-2xl p-6 absolute inset-0 scan-anim"
+                         :style="getCardStyle(index)"
+                         @touchstart="touchStart"
+                         @touchmove="touchMove"
+                         @touchend="touchEnd">
+                        <div class="h-full flex flex-col">
+                            <div class="mb-4">
+                                <h2 class="text-2xl font-bold text-cyan-400" x-text="card.title"></h2>
+                                <p class="text-cyan-300" x-text="card.company"></p>
+                            </div>
+                            
+                            <div class="flex-1 space-y-4">
+                                <div>
+                                    <h3 class="text-cyan-400 font-medium mb-2">Neural Capabilities:</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="skill in card.skills" :key="skill">
+                                            <span class="skill-tag px-3 py-1 rounded-full text-sm text-cyan-400" x-text="skill"></span>
+                                        </template>
+                                    </div>
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <p class="text-cyan-400"><i class="bi bi-briefcase me-2"></i><span x-text="card.experience"></span></p>
+                                    <p class="text-cyan-400"><i class="bi bi-mortarboard me-2"></i><span x-text="card.education"></span></p>
+                                    <p class="text-cyan-400"><i class="bi bi-currency-dollar me-2"></i><span x-text="card.salary"></span></p>
+                                </div>
+                                
+                                <p class="text-cyan-400/80" x-text="card.bio"></p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="fixed bottom-8 left-0 right-0">
+                <div class="flex justify-center gap-6">
+                    <button @click="handleSwipe('left')" class="p-4 cyber-glass rounded-full text-red-400 hover:bg-red-500/20 transition-all">
+                        <i class="bi bi-x-lg text-3xl"></i>
+                    </button>
+                    <button @click="handleSwipe('right')" class="p-4 cyber-glass rounded-full text-cyan-400 hover:bg-cyan-500/20 transition-all">
+                        <i class="bi bi-check-lg text-3xl"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                loading: true,
+                loadingMessage: 'Initializing Neural Network...',
+                showAuthModal: true,
+                showProfileSetup: false,
+                auth: {
+                    email: '',
+                    password: '',
+                    userType: 'seeker'
+                },
+                profile: {
+                    skills: [],
+                    requiredSkills: [],
+                    experience: '',
+                    education: '',
+                    bio: '',
+                    company: '',
+                    jobTitle: '',
+                    salaryMin: '',
+                    salaryMax: ''
+                },
+                newSkill: '',
+                newRequiredSkill: '',
+                currentIndex: 0,
+                matches: [],
+                touchStartX: 0,
+                touchStartY: 0,
+
+                // Mock data for demonstration
+                cards: [
+                    {
+                        id: 1,
+                        title: "Senior Neural Architect",
+                        company: "CyberTech Solutions",
+                        skills: ["AI Systems", "Neural Networks", "Quantum Computing"],
+                        experience: "5 cycles",
+                        education: "Neural Science Division",
+                        salary: "₵90,000 - ₵120,000",
+                        bio: "Seeking to architect next-generation neural interfaces."
+                    },
+                    // Add more cards as needed
+                ],
+
+                async init() {
+                    // Initialize the application
+                    // Simulate API loading
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    this.loading = false;
+
+                    // Check for existing session
+                    const session = localStorage.getItem('cybermatch_session');
+                    if (session) {
+                        this.showAuthModal = false;
+                        await this.loadUserData();
+                    }
+                },
+
+                get visibleCards() {
+                    return this.cards.slice(this.currentIndex);
+                },
+
+                async authenticateUser() {
+                    this.loading = true;
+                    this.loadingMessage = 'Establishing Neural Link...';
+                    
+                    try {
+                        // Simulate API call
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        
+                        // Store session
+                        localStorage.setItem('cybermatch_session', JSON.stringify({
+                            userType: this.auth.userType,
+                            email: this.auth.email
+                        }));
+
+                        this.showAuthModal = false;
+                        this.showProfileSetup = true;
+                    } catch (error) {
+                        console.error('Authentication error:', error);
+                        alert('Neural link authentication failed. Please try again.');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async saveProfile() {
+                    this.loading = true;
+                    this.loadingMessage = 'Configuring Neural Profile...';
+                    
+                    try {
+                        // Simulate API call
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        
+                        // Store profile data
+                        localStorage.setItem('cybermatch_profile', JSON.stringify(this.profile));
+                        
+                        this.showProfileSetup = false;
+                        await this.loadUserData();
+                    } catch (error) {
+                        console.error('Profile save error:', error);
+                        alert('Failed to configure neural profile. Please try again.');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async loadUserData() {
+                    // Load matches and other user data
+                    this.matches = JSON.parse(localStorage.getItem('cybermatch_matches') || '[]');
+                },
+
+                addSkill() {
+                    if (this.newSkill && !this.profile.skills.includes(this.newSkill)) {
+                        this.profile.skills.push(this.newSkill);
+                        this.newSkill = '';
+                    }
+                },
+
+                removeSkill(skill) {
+                    this.profile.skills = this.profile.skills.filter(s => s !== skill);
+                },
+
+                addRequiredSkill() {
+                    if (this.newRequiredSkill && !this.profile.requiredSkills.includes(this.newRequiredSkill)) {
+                        this.profile.requiredSkills.push(this.newRequiredSkill);
+                        this.newRequiredSkill = '';
+                    }
+                },
+
+                removeRequiredSkill(skill) {
+                    this.profile.requiredSkills = this.profile.requiredSkills.filter(s => s !== skill);
+                },
+
+                getCardStyle(index) {
+                    return `
+                        z-index: ${this.cards.length - index};
+                        transform: scale(${index === 0 ? 1 : 0.95}) translateY(${index * 10}px);
+                        opacity: ${index === 0 ? 1 : 0.5};
+                    `;
+                },
+
+                async handleSwipe(direction) {
+                    if (this.currentIndex >= this.cards.length) return;
+
+                    const currentCard = this.cards[this.currentIndex];
+                    
+                    if (direction === 'right') {
+                        // Handle match
+                        this.matches.push(currentCard);
+                        localStorage.setItem('cybermatch_matches', JSON.stringify(this.matches));
+                    }
+
+                    this.currentIndex++;
+                    
+                    // Reset if we've reached the end
+                    if (this.currentIndex >= this.cards.length) {
+                        await this.loadMoreCards();
+                    }
+                },
+
+                async loadMoreCards() {
+                    this.loading = true;
+                    this.loadingMessage = 'Scanning Neural Network...';
+                    
+                    try {
+                        // Simulate API call to load more cards
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        
+                        // Reset index and add new cards
+                        this.currentIndex = 0;
+                        // Add new cards here
+                    } catch (error) {
+                        console.error('Error loading cards:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                touchStart(event) {
+                    this.touchStartX = event.touches[0].clientX;
+                    this.touchStartY = event.touches[0].clientY;
+                },
+
+                touchMove(event) {
+                    if (!this.touchStartX || !this.touchStartY) return;
+
+                    const touchX = event.touches[0].clientX;
+                    const touchY = event.touches[0].clientY;
+                    
+                    const diffX = touchX - this.touchStartX;
+                    const diffY = touchY - this.touchStartY;
+                    
+                    // Update card position
+                    const card = event.currentTarget;
+                    const rotate = diffX * 0.1;
+                    card.style.transform = `translate(${diffX}px, ${diffY}px) rotate(${rotate}deg)`;
+                },
+
+                touchEnd(event) {
+                    const touchX = event.changedTouches[0].clientX;
+                    const diffX = touchX - this.touchStartX;
+                    
+                    // Determine swipe direction
+                    if (Math.abs(diffX) > 100) {
+                        this.handleSwipe(diffX > 0 ? 'right' : 'left');
+                    }
+                    
+                    // Reset card position
+                    event.currentTarget.style.transform = '';
+                    this.touchStartX = null;
+                    this.touchStartY = null;
+                },
+
+                openProfile() {
+                    this.showProfileSetup = true;
+                },
+
+                openMatches() {
+                    // Implement matches view
+                    alert('Opening neural link communications...');
+                }
+            }
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
